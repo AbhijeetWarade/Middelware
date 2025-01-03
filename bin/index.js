@@ -135,14 +135,14 @@ function createActionTypes(baseName) {
   };
 }
 
-async function generateApiServices(openApiFilePath, outputPath) {
+async function generateApiServices({ openApiSource, outputDir }) {
   let openApiSchema;
 
-  if (openApiFilePath.startsWith('http') || openApiFilePath.startsWith('https')) {
-    const response = await axios.get(openApiFilePath);
+  if (openApiSource?.startsWith('http') || openApiSource?.startsWith('https')) {
+    const response = await axios.get(openApiSource);
     openApiSchema = response.data;
   } else {
-    openApiSchema = JSON.parse(fs.readFileSync(openApiFilePath, 'utf8'));
+    openApiSchema = JSON.parse(fs.readFileSync(openApiSource, 'utf8'));
   }
 
   const apiBasePath = openApiSchema.servers[0].url || '';
@@ -196,12 +196,12 @@ async function generateApiServices(openApiFilePath, outputPath) {
     });
   }
 
-  const reducersFolder = path.join(outputPath, 'reducers');
-  const servicesFolder = path.join(outputPath, 'services');
+  const reducersFolder = path.join(outputDir, 'reducers');
+  const servicesFolder = path.join(outputDir, 'services');
 
   // Ensure folders exist
-  if (!fs.existsSync(outputPath)) {
-    fs.mkdirSync(outputPath);
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir);
   }
   if (!fs.existsSync(reducersFolder)) {
     fs.mkdirSync(reducersFolder);
