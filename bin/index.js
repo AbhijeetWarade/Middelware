@@ -65,7 +65,7 @@ export const list${capitalize(tag)} = () => ({
   type: '${actionTypes.LIST}',
   payload: {
     request: {
-      url: '${apiBasePath + route}',
+      url: '${route}',
       method: 'GET',
     },
   },
@@ -79,7 +79,7 @@ export const add${capitalize(tag)} = (item : any) => ({
   type: '${actionTypes.ADD}',
   payload: {
     request: {
-      url: '${apiBasePath + route}',
+      url: '${route}',
       method: 'POST',
       data: item,
     },
@@ -94,7 +94,7 @@ export const update${capitalize(tag)} = (item : any) => ({
   type: '${actionTypes.UPDATE}',
   payload: {
     request: {
-      url: \`\${'${apiBasePath + route}'}/\${item.id}\`,
+      url: \`\${'${route}'}/\${item.id}\`,
       method: 'PUT',
       data: item,
     },
@@ -110,7 +110,7 @@ export const delete${capitalize(tag)} = (item : any) => ({
   payload: {
     item,
     request: {
-      url: \`\${'${apiBasePath + route}'}/\${item.id}\`,
+      url: \`\${'${route}'}/\${item.id}\`,
       method: 'DELETE',
     },
   },

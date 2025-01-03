@@ -8,7 +8,7 @@
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "build": "webpack"
+        "build": "terser bin/index.js --compress --mangle --output dist/index.js"
     },
     "keywords": [
         "api",
@@ -22,5 +22,9 @@
     "dependencies": {
         "axios": "^1.7.9",
         "yargs": "^17.7.2"
+    },
+    "devDependencies": {
+        "javascript-obfuscator": "^4.1.1",
+        "terser": "^5.37.0"
     }
 }
