@@ -158,7 +158,7 @@ function generateTagService(tag, methodsGroup) {
 
         if (pathParams && pathParams.length > 0) {
             pathParams.forEach(param => {
-                url = url.replace(`{`, '${');
+                url = url.replace(`{${param.name}}`, `\${${param.name}}`);
             });
 
             for (const [propName, propDetails] of Object.entries(pathParams)) {
@@ -208,7 +208,7 @@ export const add${removeSpecialCharacters(capitalize(operationId))} = (${paramat
 type: '${removeSpecialCharacters(actionTypes.ADD)}',
 payload: {
     request: {
-        url: '${url}',
+        url: \`${url}\`,
         method: 'POST',
         ${requestBodySchemaarray ? `data: data,` : ''}${requestBodySchemaDto ? `data: data` : ''}
     },
