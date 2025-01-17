@@ -391,6 +391,97 @@ async function generateApiServices({ openApiSource, outputDir }) {
 function removeSpecialCharacters(input) {
     return input.replace(/[^a-zA-Z0-9]/g, '');
   }
+  
+
+// function generateTagReducer(tag, methodsGroup) {
+//     const actionTypes = methodsGroup.reduce((acc, { operationId }) => {
+//         const types = createActionTypes(operationId.toUpperCase());
+//         return { ...acc, ...types };
+//     }, {});
+//     tag = removeSpecialCharacters(tag);
+//     return `
+//   import type { AnyAction } from 'redux';
+  
+//   interface ${tag}State {
+//     data: any[];
+//     status: 'idle' | 'loading' | 'success' | 'failure';
+//     error: string | null;
+//   }
+  
+//   const initialState: ${tag}State = {
+//     data: [],
+//     status: 'idle',
+//     error: null,
+//   };
+  
+//   const SUCCESS_SUFFIX = '_SUCCESS';
+//   const FAILURE_SUFFIX = '_FAIL';
+  
+//   const ${tag}Reducer = (state = initialState, action: AnyAction): ${tag}State => {
+//     switch (action.type) {
+//       ${methodsGroup.map(({ operationId }) => {
+//         const types = createActionTypes(operationId.toUpperCase());
+//         return `
+//       case '${removeSpecialCharacters(types.LIST)}':
+//         return { ...state, status: 'loading', error: null };
+//       case '${removeSpecialCharacters(types.LIST)}' + SUCCESS_SUFFIX:
+//         return { ...state, data: action.payload.data, status: 'success', error: null };
+//       case '${removeSpecialCharacters(types.LIST)}' + FAILURE_SUFFIX:
+//         return { ...state, status: 'failure', error: action.error.data };
+      
+//       case '${removeSpecialCharacters(types.ADD)}':
+//         return { ...state, status: 'loading', error: null };
+//       case '${removeSpecialCharacters(types.ADD)}' + SUCCESS_SUFFIX:
+//         return {
+//           ...state,
+//           data: [...state.data, action.payload.data],
+//           status: 'success',
+//           error: null,
+//         };
+//       case '${removeSpecialCharacters(types.ADD)}' + FAILURE_SUFFIX:
+//         return { ...state, status: 'failure', error: action.error.data };
+      
+//       case '${removeSpecialCharacters(types.UPDATE)}':
+//         return { ...state, status: 'loading', error: null };
+//       case '${removeSpecialCharacters(types.UPDATE)}' + SUCCESS_SUFFIX:
+//         return {
+//           ...state,
+//           data: state.data.map(item =>
+//             item.id === action.payload.data.id ? action.payload.data : item
+//           ),
+//           status: 'success',
+//           error: null,
+//         };
+//       case '${removeSpecialCharacters(types.UPDATE)}' + FAILURE_SUFFIX:
+//         return { ...state, status: 'failure', error: action.error.data };
+      
+//       case '${removeSpecialCharacters(types.DELETE)}':
+//         return { ...state, status: 'loading', error: null };
+//       case '${removeSpecialCharacters(types.DELETE)}' + SUCCESS_SUFFIX:
+//         return {
+//           ...state,
+//           data: state.data.filter(item => item.id !== action.payload.item.id),
+//           status: 'success',
+//           error: null,
+//         };
+//       case '${removeSpecialCharacters(types.DELETE)}' + FAILURE_SUFFIX:
+//         return { ...state, status: 'failure', error: action.payload.error };
+//         `;
+//       }).join('')}
+      
+//       case 'RESET_${tag.toUpperCase()}_STATE':
+//         return initialState;
+  
+//       default:
+//         return state;
+//     }
+//   };
+  
+//   export default ${tag}Reducer;
+//     `;
+// }
+
+// enum generation and dtogenration code
 
 function generateTagReducer(tag, methodsGroup) {
     const actionTypes = methodsGroup.reduce((acc, { operationId }) => {
@@ -598,6 +689,15 @@ function generateCombinedReducers(folderPath) {
     console.log('Combined reducers file generated successfully!');
   }
   
+
+
+
+
+
+
+
+
+
 
 
 // Parse command-line arguments
