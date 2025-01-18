@@ -2,14 +2,19 @@
     "name": "middelware",
     "version": "3.0.2",
     "description": "A CLI tool to generate API services and reducers from an OpenAPI schema.",
-    "main": "bin/index.js",
+    "main": "dist/index.js",
     "bin": {
-        "middelware": "bin/index.js"
+        "middelware": "dist/index.js"
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "build": "terser bin/index.js --compress --mangle --output dist/index.js"
+        "build": "terser bin/index.js --compress --mangle --output dist/index.js",
+        "buildenc": "javascript-obfuscator bin/index.js --output dist/"
     },
+    "files": [
+        "dist/",
+        "LICENSE"
+    ],
     "keywords": [
         "api",
         "openapi",
