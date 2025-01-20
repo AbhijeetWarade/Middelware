@@ -1,6 +1,6 @@
 {
     "name": "middelware",
-    "version": "3.0.2",
+    "version": "3.0.3",
     "description": "A CLI tool to generate API services and reducers from an OpenAPI schema.",
     "main": "dist/index.js",
     "bin": {
