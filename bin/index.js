@@ -139,6 +139,7 @@ function generateTagService(tag, methodsGroup) {
     const actions = [];
     const imports = new Set(); // To collect unique DTOs or Enums for import
 
+
     methodsGroup.forEach(({ method, Uri, actionTypes, operationId, pathParams, queryparams, requestBodySchema }) => {
         let requestBodySchemaDto = '';
         let requestBodySchemaarray = '';
@@ -167,11 +168,14 @@ function generateTagService(tag, methodsGroup) {
                 result += paramString + (pathParams.length > 1 ? "," : "");
             }
             result = result.replace(/,$/, '');
-        } else if (queryparams && queryparams.length > 0) {
+        }
+
+        if (queryparams && queryparams.length > 0) {
+            if (result) result += ","; // Add a comma if pathParams were already added
             for (const [propName, propDetails] of Object.entries(queryparams)) {
                 let propType = mapType(propDetails.schema.type, propDetails.format);
                 if (propDetails.schema.enum) {
-                    propType = `${capitalizeFirstLetter(tag)}${capitalizeFirstLetter(propDetails.name)}Enum`;
+                    propType = `${capitalizeFirstLetter(propDetails.name)}Enum`;
                     imports.add(propType);
                 }
                 const paramString = `${propDetails.name}: ${propType}`;
@@ -249,7 +253,7 @@ payload: {
     });
 
     const importStatements = Array.from(imports)
-        .map(importItem => `import { ${importItem} } from "../Models/Model";`)
+        .map(importItem => `import { ${importItem} } from "../../Models/Model";`)
         .join('\n');
 
     return `// Generated Service for ${tag} \n\n${importStatements}\n\n` + actions.join('\n');
@@ -291,12 +295,6 @@ async function generateApiServices({ openApiSource, outputDir }) {
 
     const apiBasePath = openApiSchema.servers[0].url || '';
     const paths = openApiSchema.paths;
-    // Ensure folders exist
-    if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir);
-    }
-    generateDTO(openApiSchema, outputDir);
-
 
     const tagMethodsMap = {};
 
@@ -307,20 +305,13 @@ async function generateApiServices({ openApiSource, outputDir }) {
             const operationId = methods[method].operationId;
             const parameters = methods[method].parameters;
             const requestBody = methods[method].requestBody;
-            // how to get the request body schema
-
             let requestBodySchema = requestBody?.content?.['application/json']?.schema;
-
 
             var queryparams = parameters?.filter(param => param.in === 'query');
             var pathParams = parameters?.filter(param => param.in === 'path');
             if (queryparams && queryparams.length > 0) {
                 Uri = route + '?' + queryparams.map(param => param.name + '=${' + param.name + '}').join('&');
             }
-
-
-
-
 
             if (tags && tags.length > 0) {
                 tags.forEach((tag) => {
@@ -365,24 +356,40 @@ async function generateApiServices({ openApiSource, outputDir }) {
         });
     }
 
-    const reducersFolder = path.join(outputDir, 'reducers');
-    const servicesFolder = path.join(outputDir, 'services');
-
-
-    if (!fs.existsSync(reducersFolder)) {
-        fs.mkdirSync(reducersFolder);
-    }
-    if (!fs.existsSync(servicesFolder)) {
-        fs.mkdirSync(servicesFolder);
-    }
     for (const [tag, methodsGroup] of Object.entries(tagMethodsMap)) {
+        const tagFolder = path.join(outputDir, tag);
+        const reducersFolder = path.join(tagFolder, 'reducers');
+        const servicesFolder = path.join(tagFolder, 'services');
+
+
+        if (!fs.existsSync(outputDir)) {
+            fs.mkdirSync(outputDir);
+        }
+
+        if (!fs.existsSync(tagFolder)) {
+            fs.mkdirSync(tagFolder);
+        }
+        if (!fs.existsSync(reducersFolder)) {
+            fs.mkdirSync(reducersFolder);
+        }
+        if (!fs.existsSync(servicesFolder)) {
+            fs.mkdirSync(servicesFolder);
+        }
+
         const serviceContent = generateTagService(tag, methodsGroup.methods, apiBasePath);
         fs.writeFileSync(path.join(servicesFolder, `${tag}Service.ts`), serviceContent);
 
-      const reducerContent = generateTagReducer(tag, methodsGroup.methods);
-          fs.writeFileSync(path.join(reducersFolder, `${tag}Reducer.ts`), reducerContent);
+        const reducerContent = generateTagReducer(tag, methodsGroup.methods);
+        fs.writeFileSync(path.join(reducersFolder, `${tag}Reducer.ts`), reducerContent);
+
+
     }
-    generateCombinedReducers(reducersFolder);
+    const modelsFolder = path.join(outputDir, 'models');
+    if (!fs.existsSync(modelsFolder)) {
+        fs.mkdirSync(modelsFolder);
+    }
+
+    generateDTO(openApiSchema, modelsFolder);
     console.log('All API services and reducers generated successfully!');
 }
 
@@ -390,8 +397,8 @@ async function generateApiServices({ openApiSource, outputDir }) {
 
 function removeSpecialCharacters(input) {
     return input.replace(/[^a-zA-Z0-9]/g, '');
-  }
-  
+}
+
 
 // function generateTagReducer(tag, methodsGroup) {
 //     const actionTypes = methodsGroup.reduce((acc, { operationId }) => {
@@ -401,22 +408,22 @@ function removeSpecialCharacters(input) {
 //     tag = removeSpecialCharacters(tag);
 //     return `
 //   import type { AnyAction } from 'redux';
-  
+
 //   interface ${tag}State {
 //     data: any[];
 //     status: 'idle' | 'loading' | 'success' | 'failure';
 //     error: string | null;
 //   }
-  
+
 //   const initialState: ${tag}State = {
 //     data: [],
 //     status: 'idle',
 //     error: null,
 //   };
-  
+
 //   const SUCCESS_SUFFIX = '_SUCCESS';
 //   const FAILURE_SUFFIX = '_FAIL';
-  
+
 //   const ${tag}Reducer = (state = initialState, action: AnyAction): ${tag}State => {
 //     switch (action.type) {
 //       ${methodsGroup.map(({ operationId }) => {
@@ -428,7 +435,7 @@ function removeSpecialCharacters(input) {
 //         return { ...state, data: action.payload.data, status: 'success', error: null };
 //       case '${removeSpecialCharacters(types.LIST)}' + FAILURE_SUFFIX:
 //         return { ...state, status: 'failure', error: action.error.data };
-      
+
 //       case '${removeSpecialCharacters(types.ADD)}':
 //         return { ...state, status: 'loading', error: null };
 //       case '${removeSpecialCharacters(types.ADD)}' + SUCCESS_SUFFIX:
@@ -440,7 +447,7 @@ function removeSpecialCharacters(input) {
 //         };
 //       case '${removeSpecialCharacters(types.ADD)}' + FAILURE_SUFFIX:
 //         return { ...state, status: 'failure', error: action.error.data };
-      
+
 //       case '${removeSpecialCharacters(types.UPDATE)}':
 //         return { ...state, status: 'loading', error: null };
 //       case '${removeSpecialCharacters(types.UPDATE)}' + SUCCESS_SUFFIX:
@@ -454,7 +461,7 @@ function removeSpecialCharacters(input) {
 //         };
 //       case '${removeSpecialCharacters(types.UPDATE)}' + FAILURE_SUFFIX:
 //         return { ...state, status: 'failure', error: action.error.data };
-      
+
 //       case '${removeSpecialCharacters(types.DELETE)}':
 //         return { ...state, status: 'loading', error: null };
 //       case '${removeSpecialCharacters(types.DELETE)}' + SUCCESS_SUFFIX:
@@ -468,15 +475,15 @@ function removeSpecialCharacters(input) {
 //         return { ...state, status: 'failure', error: action.payload.error };
 //         `;
 //       }).join('')}
-      
+
 //       case 'RESET_${tag.toUpperCase()}_STATE':
 //         return initialState;
-  
+
 //       default:
 //         return state;
 //     }
 //   };
-  
+
 //   export default ${tag}Reducer;
 //     `;
 // }
@@ -568,7 +575,7 @@ function generateTagReducer(tag, methodsGroup) {
       case '${removeSpecialCharacters(types.DELETE)}' + FAILURE_SUFFIX:
         return { ...state, status: 'failure', error: action.payload?.error || null };
         `;
-      }).join('')}
+    }).join('')}
       
       case 'RESET_${tag.toUpperCase()}_STATE':
         return initialState;
@@ -585,22 +592,39 @@ function generateTagReducer(tag, methodsGroup) {
 
 
 function generateDTO(jsonData, dtopath) {
-    const schemas = jsonData.components.schemas;
-    let dtoClasses = "";
+
+    const dtofrompaths = jsonData.paths;
     let enums = "";
-    let classpath = path.join(dtopath, 'Models');
+    const schemas = jsonData.components.schemas;
+
+
+    processParametersWithEnum(dtofrompaths, schema => {
+        const enumName = `${capitalizeFirstLetter(schema.name)}Enum`;
+        propType = enumName;
+        enums += generateEnum(enumName, schema.schema.enum);
+    });
+
+
+    let dtoClasses = "";
+
+    let classpath = path.join(dtopath);
     for (const [schemaName, schema] of Object.entries(schemas)) {
         const properties = schema.properties || {};
 
         // Start defining the class
+
         let classDef = `export class ${schemaName} {\n`;
+
 
         for (const [propName, propDetails] of Object.entries(properties)) {
             let propType;
             if (propDetails.enum) {
-                const enumName = `${schemaName}${capitalizeFirstLetter(propName)}Enum`;
+                const enumName = `${capitalizeFirstLetter(propName)}Enum`;
                 propType = enumName;
-                enums += generateEnum(enumName, propDetails.enum);
+                let tempenum = generateEnum(enumName, propDetails.enum);
+                if (!enums.includes(tempenum)) {
+                    enums += generateEnum(enumName, propDetails.enum);
+                }
             } else if (propDetails.type === 'array' && propDetails.items) {
                 if (propDetails.items.$ref) {
                     const refType = propDetails.items.$ref.split('/').pop();
@@ -626,8 +650,71 @@ function generateDTO(jsonData, dtopath) {
         fs.mkdirSync(classpath);
     }
     const outputPath = path.join(classpath, `Model.ts`);
-    fs.writeFileSync(outputPath, enums + dtoClasses);
+
+    fs.writeFileSync(outputPath, deduplicateEnums(enums) + dtoClasses);
 }
+
+
+
+const deduplicateEnums = (input) => {
+    // Split input into lines
+    const lines = input.split("\n");
+
+    const enums = {};
+    let currentEnum = null;
+
+    lines.forEach((line) => {
+        const enumMatch = line.match(/export enum (\w+)/);
+        const valueMatch = line.match(/\s+(\w+)\s+=\s+["|']?([\w/.\-]+)["|']?/);
+
+        if (enumMatch) {
+            currentEnum = enumMatch[1];
+            if (!enums[currentEnum]) {
+                enums[currentEnum] = new Set();
+            }
+        } else if (valueMatch && currentEnum) {
+            enums[currentEnum].add(valueMatch[0].trim());
+        }
+    });
+
+    // Generate output
+    let output = "";
+    for (const [enumName, values] of Object.entries(enums)) {
+        output += `export enum ${enumName} {\n`;
+        values.forEach((value) => {
+            output += `    ${value},\n`;
+        });
+        output += `}\n\n`;
+    }
+
+    return output.trim();
+};
+
+
+
+function processParametersWithEnum(dtoPaths, callback) {
+
+
+    const seen = new Set();
+
+    Object.values(dtoPaths).forEach(methods => {
+
+        Object.values(methods).forEach(methodDetails => {
+
+            methodDetails.parameters?.forEach(param => {
+                if (param.schema?.enum) {
+                    const key = JSON.stringify(param); // Create a unique identifier including operationId
+                    if (!seen.has(key)) {
+                        seen.add(key); // Mark as processed
+                        callback(param);
+                    }
+                }
+            })
+        }
+        )
+    });
+}
+
 
 function mapType(jsonType, jsonFormat) {
     const typeMapping = {
@@ -665,16 +752,16 @@ function capitalizeFirstLetter(string) {
 
 function generateCombinedReducers(folderPath) {
     const reducerFiles = fs.readdirSync(folderPath).filter((file) => file.endsWith('Reducer.ts'));
-  
+
     const imports = [];
     const combineReducersContent = [];
-  
+
     reducerFiles.forEach((file) => {
-      const reducerName = path.basename(file, path.extname(file));
-      imports.push(`import ${removeSpecialCharacters(reducerName)} from './${file.replace('.ts', '')}';`);
-      combineReducersContent.push(`  ${removeSpecialCharacters(reducerName)}`);
+        const reducerName = path.basename(file, path.extname(file));
+        imports.push(`import ${removeSpecialCharacters(reducerName)} from './${file.replace('.ts', '')}';`);
+        combineReducersContent.push(`  ${removeSpecialCharacters(reducerName)}`);
     });
-  
+
     const combinedReducersContent = `
   ${imports.join('\n')}
   
@@ -684,11 +771,11 @@ function generateCombinedReducers(folderPath) {
   ${combineReducersContent.join(',\n')}
   });
   `;
-  
+
     fs.writeFileSync(path.join(folderPath, 'combinedReducers.ts'), combinedReducersContent);
     console.log('Combined reducers file generated successfully!');
-  }
-  
+}
+
 
 
 
