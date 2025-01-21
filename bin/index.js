@@ -355,7 +355,7 @@ async function generateApiServices({ openApiSource, outputDir }) {
             }
         });
     }
-
+    let reducerpathlist = [];
     for (const [tag, methodsGroup] of Object.entries(tagMethodsMap)) {
         const tagFolder = path.join(outputDir, tag);
         const reducersFolder = path.join(tagFolder, 'reducers');
@@ -381,13 +381,18 @@ async function generateApiServices({ openApiSource, outputDir }) {
 
         const reducerContent = generateTagReducer(tag, methodsGroup.methods);
         fs.writeFileSync(path.join(reducersFolder, `${tag}Reducer.ts`), reducerContent);
-
+        reducerpathlist.push(reducersFolder);
 
     }
+    // Generate combined reducers
+
+
+
     const modelsFolder = path.join(outputDir, 'models');
     if (!fs.existsSync(modelsFolder)) {
         fs.mkdirSync(modelsFolder);
     }
+    generateCombinedReducers(reducerpathlist, outputDir,modelsFolder);
 
     generateDTO(openApiSchema, modelsFolder);
     console.log('All API services and reducers generated successfully!');
@@ -747,20 +752,33 @@ function capitalizeFirstLetter(string) {
 }
 // end of enum generation and dtogenration code
 
-
-
-
-function generateCombinedReducers(folderPath) {
-    const reducerFiles = fs.readdirSync(folderPath).filter((file) => file.endsWith('Reducer.ts'));
-
+function generateCombinedReducers(folderPaths, keyword,outputDir) {
     const imports = [];
     const combineReducersContent = [];
 
-    reducerFiles.forEach((file) => {
-        const reducerName = path.basename(file, path.extname(file));
-        imports.push(`import ${removeSpecialCharacters(reducerName)} from './${file.replace('.ts', '')}';`);
-        combineReducersContent.push(`  ${removeSpecialCharacters(reducerName)}`);
+    // folderpath is an array of reducer paths
+    folderPaths.forEach((folderPath) => {
+
+        const reducerFiles = fs.readdirSync(folderPath).filter((file) => file.endsWith('Reducer.ts'));
+        let afterMiddleware = folderPath.includes(keyword) ? folderPath.split(keyword)[1] : null;
+        if (afterMiddleware) {
+            afterMiddleware = afterMiddleware.replace(/^\\/, ""); // Removes leading '\\' if present
+            afterMiddleware = afterMiddleware.replace(/\\/g, '/'); // Replaces all '\\' with '/'
+        }
+        reducerFiles.forEach((file) => {
+            const reducerName = path.basename(file, path.extname(file));
+            imports.push(`import ${removeSpecialCharacters(reducerName)} from '../${afterMiddleware}/${file.replace('.ts', '')}';`);
+            combineReducersContent.push(`  ${removeSpecialCharacters(reducerName)}`);
+        });
+
     });
+
+
+    // reducerFiles.forEach((file) => {
+    //     const reducerName = path.basename(file, path.extname(file));
+    //     imports.push(`import ${removeSpecialCharacters(reducerName)} from './${file.replace('.ts', '')}';`);
+    //     combineReducersContent.push(`  ${removeSpecialCharacters(reducerName)}`);
+    // });
 
     const combinedReducersContent = `
   ${imports.join('\n')}
@@ -772,7 +790,7 @@ function generateCombinedReducers(folderPath) {
   });
   `;
 
-    fs.writeFileSync(path.join(folderPath, 'combinedReducers.ts'), combinedReducersContent);
+    fs.writeFileSync(path.join(outputDir, 'combinedReducers.ts'), combinedReducersContent);
     console.log('Combined reducers file generated successfully!');
 }
 
