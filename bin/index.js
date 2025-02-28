@@ -251,11 +251,7 @@ payload: {
             `);
         }
     });
-
-    const importStatements = Array.from(imports)
-        .map(importItem => `import { ${importItem} } from "../../Models/Model";`)
-        .join('\n');
-
+    const importStatements = `import type { ${Array.from(imports).join(', ')} } from "../../Models/Model";`;
     return `// Generated Service for ${tag} \n\n${importStatements}\n\n` + actions.join('\n');
 }
 
@@ -388,11 +384,11 @@ async function generateApiServices({ openApiSource, outputDir }) {
 
 
 
-    const modelsFolder = path.join(outputDir, 'models');
+    const modelsFolder = path.join(outputDir, 'Models');
     if (!fs.existsSync(modelsFolder)) {
         fs.mkdirSync(modelsFolder);
     }
-    generateCombinedReducers(reducerpathlist, outputDir,modelsFolder);
+    generateCombinedReducers(reducerpathlist, outputDir, modelsFolder);
 
     generateDTO(openApiSchema, modelsFolder);
     console.log('All API services and reducers generated successfully!');
@@ -405,95 +401,6 @@ function removeSpecialCharacters(input) {
 }
 
 
-// function generateTagReducer(tag, methodsGroup) {
-//     const actionTypes = methodsGroup.reduce((acc, { operationId }) => {
-//         const types = createActionTypes(operationId.toUpperCase());
-//         return { ...acc, ...types };
-//     }, {});
-//     tag = removeSpecialCharacters(tag);
-//     return `
-//   import type { AnyAction } from 'redux';
-
-//   interface ${tag}State {
-//     data: any[];
-//     status: 'idle' | 'loading' | 'success' | 'failure';
-//     error: string | null;
-//   }
-
-//   const initialState: ${tag}State = {
-//     data: [],
-//     status: 'idle',
-//     error: null,
-//   };
-
-//   const SUCCESS_SUFFIX = '_SUCCESS';
-//   const FAILURE_SUFFIX = '_FAIL';
-
-//   const ${tag}Reducer = (state = initialState, action: AnyAction): ${tag}State => {
-//     switch (action.type) {
-//       ${methodsGroup.map(({ operationId }) => {
-//         const types = createActionTypes(operationId.toUpperCase());
-//         return `
-//       case '${removeSpecialCharacters(types.LIST)}':
-//         return { ...state, status: 'loading', error: null };
-//       case '${removeSpecialCharacters(types.LIST)}' + SUCCESS_SUFFIX:
-//         return { ...state, data: action.payload.data, status: 'success', error: null };
-//       case '${removeSpecialCharacters(types.LIST)}' + FAILURE_SUFFIX:
-//         return { ...state, status: 'failure', error: action.error.data };
-
-//       case '${removeSpecialCharacters(types.ADD)}':
-//         return { ...state, status: 'loading', error: null };
-//       case '${removeSpecialCharacters(types.ADD)}' + SUCCESS_SUFFIX:
-//         return {
-//           ...state,
-//           data: [...state.data, action.payload.data],
-//           status: 'success',
-//           error: null,
-//         };
-//       case '${removeSpecialCharacters(types.ADD)}' + FAILURE_SUFFIX:
-//         return { ...state, status: 'failure', error: action.error.data };
-
-//       case '${removeSpecialCharacters(types.UPDATE)}':
-//         return { ...state, status: 'loading', error: null };
-//       case '${removeSpecialCharacters(types.UPDATE)}' + SUCCESS_SUFFIX:
-//         return {
-//           ...state,
-//           data: state.data.map(item =>
-//             item.id === action.payload.data.id ? action.payload.data : item
-//           ),
-//           status: 'success',
-//           error: null,
-//         };
-//       case '${removeSpecialCharacters(types.UPDATE)}' + FAILURE_SUFFIX:
-//         return { ...state, status: 'failure', error: action.error.data };
-
-//       case '${removeSpecialCharacters(types.DELETE)}':
-//         return { ...state, status: 'loading', error: null };
-//       case '${removeSpecialCharacters(types.DELETE)}' + SUCCESS_SUFFIX:
-//         return {
-//           ...state,
-//           data: state.data.filter(item => item.id !== action.payload.item.id),
-//           status: 'success',
-//           error: null,
-//         };
-//       case '${removeSpecialCharacters(types.DELETE)}' + FAILURE_SUFFIX:
-//         return { ...state, status: 'failure', error: action.payload.error };
-//         `;
-//       }).join('')}
-
-//       case 'RESET_${tag.toUpperCase()}_STATE':
-//         return initialState;
-
-//       default:
-//         return state;
-//     }
-//   };
-
-//   export default ${tag}Reducer;
-//     `;
-// }
-
-// enum generation and dtogenration code
 
 function generateTagReducer(tag, methodsGroup) {
     const actionTypes = methodsGroup.reduce((acc, { operationId }) => {
@@ -594,131 +501,113 @@ function generateTagReducer(tag, methodsGroup) {
     `;
 }
 
+function generateEnum(enumName, values) {
+    if (!values || !Array.isArray(values)) return '';
 
-
-function generateDTO(jsonData, dtopath) {
-
-    const dtofrompaths = jsonData.paths;
-    let enums = "";
-    const schemas = jsonData.components.schemas;
-
-
-    processParametersWithEnum(dtofrompaths, schema => {
-        const enumName = `${capitalizeFirstLetter(schema.name)}Enum`;
-        propType = enumName;
-        enums += generateEnum(enumName, schema.schema.enum);
+    let enumCode = `export enum ${enumName} {\n`;
+    values.forEach(value => {
+        let key = typeof value === "number" ? `Value${value}` : value.replace(/\W/g, '_');
+        enumCode += `    ${key} = ${JSON.stringify(value)},\n`;
     });
-
-
-    let dtoClasses = "";
-
-    let classpath = path.join(dtopath);
-    for (const [schemaName, schema] of Object.entries(schemas)) {
-        const properties = schema.properties || {};
-
-        // Start defining the class
-
-        let classDef = `export class ${schemaName} {\n`;
-
-
-        for (const [propName, propDetails] of Object.entries(properties)) {
-            let propType;
-            if (propDetails.enum) {
-                const enumName = `${capitalizeFirstLetter(propName)}Enum`;
-                propType = enumName;
-                let tempenum = generateEnum(enumName, propDetails.enum);
-                if (!enums.includes(tempenum)) {
-                    enums += generateEnum(enumName, propDetails.enum);
-                }
-            } else if (propDetails.type === 'array' && propDetails.items) {
-                if (propDetails.items.$ref) {
-                    const refType = propDetails.items.$ref.split('/').pop();
-                    propType = `${refType}[]`;
-                } else {
-                    const itemType = mapType(propDetails.items.type, propDetails.items.format);
-                    propType = `${itemType}[]`;
-                }
-            } else if (propDetails.$ref) {
-                const refType = propDetails.$ref.split('/').pop();
-                propType = refType;
-            } else {
-                propType = mapType(propDetails.type, propDetails.format);
-            }
-            classDef += `    ${removeSpecialCharacters(propName)}!: ${propType};\n`;
-        }
-
-        classDef += "}\n\n";
-        dtoClasses += classDef;
-
-    }
-    if (!fs.existsSync(classpath)) {
-        fs.mkdirSync(classpath);
-    }
-    const outputPath = path.join(classpath, `Model.ts`);
-
-    fs.writeFileSync(outputPath, deduplicateEnums(enums) + dtoClasses);
+    return enumCode + `}\n\n`;
 }
 
+function getPropertyType(propName, propDetails) {
+    if (propDetails.enum && propDetails.type !== 'boolean') {
+        return `${capitalizeFirstLetter(propName)}Enum`;
+    }
+    if (propDetails.type === 'array' && propDetails.items) {
+        return propDetails.items.$ref
+            ? `${propDetails.items.$ref.split('/').pop()}[]`
+            : `${mapType(propDetails.items.type, propDetails.items.format)}[]`;
+    }
+    if (propDetails.$ref) {
+        return propDetails.$ref.split('/').pop();
+    }
+    return mapType(propDetails.type, propDetails.format);
+}
 
-
+// Modified deduplication function to handle unique enums
 const deduplicateEnums = (input) => {
-    // Split input into lines
-    const lines = input.split("\n");
-
-    const enums = {};
+    const enums = new Map();
     let currentEnum = null;
 
-    lines.forEach((line) => {
+    input.split("\n").forEach((line) => {
         const enumMatch = line.match(/export enum (\w+)/);
-        const valueMatch = line.match(/\s+(\w+)\s+=\s+["|']?([\w/.\-]+)["|']?/);
+        const valueMatch = line.match(/^\s+(\w+)\s+=\s+["']?([\w/.\-]+)["']?/);
 
         if (enumMatch) {
             currentEnum = enumMatch[1];
-            if (!enums[currentEnum]) {
-                enums[currentEnum] = new Set();
-            }
+            enums.set(currentEnum, enums.get(currentEnum) || new Set());
         } else if (valueMatch && currentEnum) {
-            enums[currentEnum].add(valueMatch[0].trim());
+            enums.get(currentEnum).add(valueMatch[0]);
         }
     });
 
-    // Generate output
-    let output = "";
-    for (const [enumName, values] of Object.entries(enums)) {
-        output += `export enum ${enumName} {\n`;
-        values.forEach((value) => {
-            output += `    ${value},\n`;
-        });
-        output += `}\n\n`;
-    }
+    return Array.from(enums.entries())
+        .map(([enumName, values]) => `export enum ${enumName} {\n${Array.from(values).map((value, index, array) => `${value}${index < array.length - 1 ? ',' : ''}`).join("\n")}\n}\n`)
+        .join("\n");
 
-    return output.trim();
 };
 
 
+function generateDTO(jsonData, dtopath) {
+    const dtoPaths = jsonData.paths;
+    const schemas = jsonData.components.schemas;
+    let enums = '';
+    let dtoClasses = '';
 
+    // Process parameters with enums
+    processParametersWithEnum(dtoPaths, param => {
+        const enumName = `${capitalizeFirstLetter(param.name)}Enum`;
+        enums += generateEnum(enumName, param.schema.enum);
+    });
+
+    // Process schema-based enums
+    for (const [schemaName, schema] of Object.entries(schemas)) {
+        let classDef = `export class ${schemaName} {\n`;
+
+        for (const [propName, propDetails] of Object.entries(schema.properties || {})) {
+            const propType = getPropertyType(propName, propDetails);
+
+            if (propDetails.enum && propDetails.type !== 'boolean') {
+                const enumName = `${capitalizeFirstLetter(propName)}Enum`;
+                let enumCode = generateEnum(enumName, propDetails.enum);
+                enums += enumCode;
+            }
+
+            classDef += `    ${propName}!: ${propType};\n`;
+        }
+
+        dtoClasses += `${classDef}}\n\n`;
+    }
+
+    // Deduplicate enums before writing to file
+    const uniqueEnums = deduplicateEnums(enums);
+
+    if (!fs.existsSync(dtopath)) fs.mkdirSync(dtopath);
+    fs.writeFileSync(path.join(dtopath, `Model.ts`), uniqueEnums + dtoClasses);
+}
+
+// Function to process parameters with enums
 function processParametersWithEnum(dtoPaths, callback) {
-
-
     const seen = new Set();
 
     Object.values(dtoPaths).forEach(methods => {
-
         Object.values(methods).forEach(methodDetails => {
-
             methodDetails.parameters?.forEach(param => {
                 if (param.schema?.enum) {
                     const key = JSON.stringify(param); // Create a unique identifier including operationId
                     if (!seen.has(key)) {
                         seen.add(key); // Mark as processed
-                        callback(param);
+                        callback(param); // Call the callback for this parameter
                     }
                 }
-            })
-        }
-        )
+            });
+        });
     });
 }
+
 
 
 function mapType(jsonType, jsonFormat) {
@@ -738,21 +627,29 @@ function mapType(jsonType, jsonFormat) {
     return formatMapping[jsonFormat] || typeMapping[jsonType] || "any";
 }
 
-function generateEnum(enumName, enumValues) {
-    let enumDef = `export enum ${enumName} {\n`;
-    for (const value of enumValues) {
-        enumDef += `    ${capitalizeFirstLetter(removeSpecialCharacters(value))} = "${value}",\n`;
-    }
-    enumDef += "}\n\n";
-    return enumDef;
-}
+// function generateEnum(enumName, enumValues) {
+//     let enumDef = `export enum ${enumName} {\n`;
+//     for (const value of enumValues) {
+
+//         if (typeof value === 'string') {
+//             enumDef += `    ${capitalizeFirstLetter(removeSpecialCharacters(value))} = "${value}",\n`;
+//         } else {
+//             enumDef += `    ${capitalizeFirstLetter(removeSpecialCharacters(value.toString()))} = ${value},\n`;
+//         }
+//     }
+//     enumDef += "}\n\n";
+//     return enumDef;
+// }
 
 function capitalizeFirstLetter(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
-// end of enum generation and dtogenration code
 
-function generateCombinedReducers(folderPaths, keyword,outputDir) {
+
+
+
+
+function generateCombinedReducers(folderPaths, keyword, outputDir) {
     const imports = [];
     const combineReducersContent = [];
 
